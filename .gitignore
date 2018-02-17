@@ -30,3 +30,10 @@
 *.exe
 *.out
 *.app
+
+#Ignore the whole build folder
+build/
+
+#Visual Studio
+*.VC.db
+.vs/
