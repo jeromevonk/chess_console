@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1504721120 source:c:\jerome\private\chess\main.cpp
+	<iostream>
+	<iomanip>
+	<conio.h>
+	<stdio.h>
+	<string.h>
+
