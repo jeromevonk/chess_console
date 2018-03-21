@@ -158,7 +158,7 @@ public:
    };
 
    //std::deque<std::string> moves;
-   std::deque<Round> moves;
+   std::deque<Round> rounds;
 
    // Save the captured pieces
    std::vector<char> white_captured;

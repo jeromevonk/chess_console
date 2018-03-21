@@ -617,9 +617,9 @@ void saveGame(void)
       ofs << "[Chess console] Saved at: " << std::ctime(&end_time);
 
       // Write the moves
-      for (unsigned i = 0; i < current_game->moves.size(); i++)
+      for (unsigned i = 0; i < current_game->rounds.size(); i++)
       {
-         ofs << current_game->moves[i].white_move.c_str() << " | " << current_game->moves[i].black_move.c_str() << "\n";
+         ofs << current_game->rounds[i].white_move.c_str() << " | " << current_game->rounds[i].black_move.c_str() << "\n";
       }
 
       ofs.close();

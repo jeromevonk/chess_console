@@ -118,7 +118,7 @@ Game::~Game()
 {
    white_captured.clear();
    black_captured.clear();
-   moves.clear();
+   rounds.clear();
 }
 
 void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling)
@@ -1652,17 +1652,17 @@ void Game::logMove(std::string &to_record)
       round.white_move = to_record;
       round.black_move = "";
 
-      moves.push_back(round);
+      rounds.push_back(round);
    }
    else
    {
       // If this was a black_move, just update the last Round
-      Round round = moves[moves.size() - 1];
+      Round round = rounds[rounds.size() - 1];
       round.black_move = to_record;
 
       // Remove the last round and put it back, now with the black move
-      moves.pop_back();
-      moves.push_back(round);
+      rounds.pop_back();
+      rounds.push_back(round);
    }
 }
 
@@ -1674,12 +1674,12 @@ string Game::getLastMove(void)
    if (BLACK_PLAYER == getCurrentTurn())
    {
       // If it's black's turn now, white had the last move
-      last_move = moves[moves.size() - 1].white_move;
+      last_move = rounds[rounds.size() - 1].white_move;
    }
    else
    {
       // Last move was black's
-      last_move = moves[moves.size() - 1].black_move;
+      last_move = rounds[rounds.size() - 1].black_move;
    }
 
    return last_move;
@@ -1691,16 +1691,16 @@ void Game::deleteLastMove( void )
    if (WHITE_PLAYER == getCurrentTurn())
    {
       // Last move was white's turn, so simply pop from the back
-      moves.pop_back();
+      rounds.pop_back();
    }
    else
    {
       // Last move was black's, so let's 
-      Round round = moves[moves.size() - 1];
+      Round round = rounds[rounds.size() - 1];
       round.black_move = "";
 
       // Pop last round and put it back, now without the black move
-      moves.pop_back();
-      moves.push_back(round);
+      rounds.pop_back();
+      rounds.push_back(round);
    }
 }

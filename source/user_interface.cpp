@@ -119,11 +119,11 @@ void printLine(int iLine, int iColor1, int iColor2, Game& game)
 void printSituation(Game& game)
 {
    // Last moves - print only if at least one move has been made
-   if ( 0 != game.moves.size() )
+   if ( 0 != game.rounds.size() )
    {
       cout << "Last moves:\n";
 
-      int iMoves = game.moves.size();
+      int iMoves = game.rounds.size();
       int iToShow = iMoves >= 5 ? 5 : iMoves;
 
       string space = "";
@@ -136,7 +136,7 @@ void printSituation(Game& game)
             space = " ";
          }
 
-         cout << space << iMoves << " ..... " <<  game.moves[iMoves-1].white_move.c_str() << " | " << game.moves[iMoves - 1].black_move.c_str() << "\n";
+         cout << space << iMoves << " ..... " <<  game.rounds[iMoves-1].white_move.c_str() << " | " << game.rounds[iMoves - 1].black_move.c_str() << "\n";
          iMoves--;
       }
 
