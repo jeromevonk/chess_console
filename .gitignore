@@ -37,3 +37,4 @@ build/
 #Visual Studio
 *.VC.db
 .vs/
+*.aps
