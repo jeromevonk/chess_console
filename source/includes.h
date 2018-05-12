@@ -8,4 +8,6 @@
 #include <fstream>
 #include <chrono>
 
+#include <string.h> // memcpy on linux
+
 using namespace std;
