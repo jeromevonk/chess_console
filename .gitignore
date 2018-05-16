@@ -38,3 +38,5 @@ build/
 *.VC.db
 .vs/
 *.aps
+*.opendb
+source/chess

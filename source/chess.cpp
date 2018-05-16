@@ -121,7 +121,7 @@ Game::~Game()
    rounds.clear();
 }
 
-void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling)
+void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling, Chess::Promotion* S_promotion)
 {
    // Get the piece to be moved
    char chPiece = getPieceAtPosition(present);
@@ -143,9 +143,11 @@ void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPa
          black_captured.push_back(chCapturedPiece);
       }
 
-      // Set Undo structure as piece was captures, no "en passant" move performed
+      // Set Undo structure. If a piece was captured, then no "en passant" move performed
       m_undo.bCapturedLastMove = true;
-      m_undo.en_passant.bApplied = false;
+      
+      // Reset m_undo.castling
+      memset( &m_undo.en_passant, 0, sizeof( Chess::EnPassant ));
    }
    else if (true == S_enPassant->bApplied)
    {
@@ -172,14 +174,29 @@ void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPa
    else
    {
       m_undo.bCapturedLastMove   = false;
-      m_undo.en_passant.bApplied = false;
+      
+      // Reset m_undo.castling
+      memset( &m_undo.en_passant, 0, sizeof( Chess::EnPassant ));
    }
 
    // Remove piece from present position
    board[present.iRow][present.iColumn] = EMPTY_SQUARE;
 
    // Move piece to new position
-   board[future.iRow][future.iColumn] = chPiece;
+   if ( true == S_promotion->bApplied )
+   {
+      board[future.iRow][future.iColumn] = S_promotion->chAfter;
+
+      // Set Undo structure as a promotion occured
+      memcpy(&m_undo.promotion, S_promotion, sizeof(Chess::Promotion));
+   }
+   else
+   {
+      board[future.iRow][future.iColumn] = chPiece;
+
+      // Reset m_undo.promotion
+      memset( &m_undo.promotion, 0, sizeof( Chess::Promotion ));
+   }  
 
    // Was it a castling move?
    if ( S_castling->bApplied == true  )
@@ -199,6 +216,11 @@ void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPa
       // Save the 'CastlingAllowed' information in case the move is undone
       m_undo.bCastlingKingSideAllowed  = m_bCastlingKingSideAllowed[getCurrentTurn()] ;
       m_undo.bCastlingQueenSideAllowed = m_bCastlingQueenSideAllowed[getCurrentTurn()];
+   }
+   else
+   {
+      // Reset m_undo.castling
+      memset( &m_undo.castling, 0, sizeof( Chess::Castling ));
    }
 
    // Castling requirements
@@ -243,7 +265,15 @@ void Game::undoLastMove()
    char chPiece = getPieceAtPosition(to.iRow, to.iColumn);
 
    // Moving it back
-   board[from.iRow][from.iColumn] = chPiece;
+   // If there was a castling
+   if ( true == m_undo.promotion.bApplied )
+   {
+      board[from.iRow][from.iColumn] = m_undo.promotion.chBefore;
+   }
+   else
+   {
+      board[from.iRow][from.iColumn] = chPiece;
+   }
 
    // Change turns
    changeTurns();
@@ -302,14 +332,14 @@ void Game::undoLastMove()
    }
 
    // Clean m_undo struct
-   m_undo.bCanUndo            = false;
-   m_undo.bCapturedLastMove   = false;
-   m_undo.en_passant.bApplied = false;
-   m_undo.castling.bApplied   = false;
+   m_undo.bCanUndo             = false;
+   m_undo.bCapturedLastMove    = false;
+   m_undo.en_passant.bApplied  = false;
+   m_undo.castling.bApplied    = false;
+   m_undo.promotion.bApplied   = false;
 
    // If it was a checkmate, toggle back to game not finished
    m_bGameFinished = false;
-
 
    // Finally, remove the last move from the list
    deleteLastMove();
@@ -1627,7 +1657,7 @@ int Game::getOpponentColor(void)
    return iColor;
 }
 
-void Game::parseMove(string move, Position* pFrom, Position* pTo)
+void Game::parseMove(string move, Position* pFrom, Position* pTo, char* chPromoted)
 {
    pFrom->iColumn = move[0];
    pFrom->iRow    = move[1];
@@ -1641,10 +1671,29 @@ void Game::parseMove(string move, Position* pFrom, Position* pTo)
    // Convert row from ['1'-'8'] to [0x00-0x07]
    pFrom->iRow  = pFrom->iRow  - '1';
    pTo->iRow    = pTo->iRow    - '1';
+
+   if ( chPromoted != nullptr )
+   {
+      if ( move[5] == '=' )
+      {
+         *chPromoted = move[6];
+      }
+      else
+      {
+         *chPromoted = EMPTY_SQUARE;
+      }
+   }
 }
 
 void Game::logMove(std::string &to_record)
 {
+   // If record contains only 5 chracters, add spaces
+   // Because when 
+   if ( to_record.length() == 5 )
+   {
+      to_record += "  ";
+   }
+
    if ( WHITE_PLAYER == getCurrentTurn() )
    {
       // If this was a white player move, create a new round and leave the black_move empty

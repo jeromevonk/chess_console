@@ -1,7 +1,6 @@
 #include "includes.h"
 #include "user_interface.h"
 
-
 // Save the next message to be displayed (regardind last command)
 string next_message;
 
@@ -146,7 +145,7 @@ void printSituation(Game& game)
    // Captured pieces - print only if at least one piece has been captured
    if ( 0 != game.white_captured.size() || 0 != game.black_captured.size() )
    {
-      cout << "------------------------------\n";
+      cout << "---------------------------------------------\n";
       cout << "WHITE captured: ";
       for (unsigned i = 0; i < game.white_captured.size(); i++)
       {
@@ -161,7 +160,7 @@ void printSituation(Game& game)
       }
       cout << "\n";
 
-      cout << "------------------------------\n";
+      cout << "---------------------------------------------\n";
    }
 
    // Current turn

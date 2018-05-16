@@ -57,6 +57,14 @@ public:
       Position rook_after;
    };
 
+   struct Promotion
+   {
+      bool bApplied;
+      //Position  pos;
+      char chBefore;
+      char chAfter;
+   };
+
    struct IntendedMove
    {
       char chPiece;
@@ -100,7 +108,7 @@ public:
    Game();
    ~Game();
 
-   void movePiece( Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling );
+   void movePiece( Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling, Chess::Promotion* S_promotion );
 
    void undoLastMove();
 
@@ -142,7 +150,7 @@ public:
 
    int getOpponentColor( void );
 
-   void parseMove( string move, Position* pFrom, Position* pTo );
+   void parseMove( string move, Position* pFrom, Position* pTo, char* chPromoted = nullptr );
 
    void logMove( std::string &to_record );
 
@@ -180,6 +188,7 @@ private:
 
       EnPassant en_passant;
       Castling  castling;
+      Promotion promotion;
    } m_undo;
 
    // Castling requirements

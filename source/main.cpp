@@ -16,7 +16,7 @@ Game* current_game = NULL;
 // Helper
 // Auxiliar functions to determine if a move is valid, etc
 //---------------------------------------------------------------------------------------
-bool isMoveValid(Chess::Position present, Chess::Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling)
+bool isMoveValid(Chess::Position present, Chess::Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling, Chess::Promotion* S_promotion)
 {
    bool bValid = false;
 
@@ -122,6 +122,14 @@ bool isMoveValid(Chess::Position present, Chess::Position future, Chess::EnPassa
          {
             // This is invalid
             return false;
+         }
+
+         // If a pawn reaches its eight rank, it must be promoted to another piece
+         if ( (Chess::isWhitePiece( chPiece ) && 7 == future.iRow) ||
+              (Chess::isBlackPiece( chPiece ) && 0 == future.iRow) )
+         {
+            cout << "Pawn must be promoted!\n";
+            S_promotion->bApplied = true;
          }
       }
       break;
@@ -351,7 +359,7 @@ bool isMoveValid(Chess::Position present, Chess::Position future, Chess::EnPassa
    return bValid;
 }
 
-void makeTheMove(Chess::Position present, Chess::Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling)
+void makeTheMove(Chess::Position present, Chess::Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling, Chess::Promotion* S_promotion)
 {
    char chPiece = current_game->getPieceAtPosition(present.iRow, present.iColumn);
 
@@ -382,7 +390,7 @@ void makeTheMove(Chess::Position present, Chess::Position future, Chess::EnPassa
       createNextMessage("Castling applied!\n");
    }
 
-   current_game->movePiece(present, future, S_enPassant, S_castling);
+   current_game->movePiece(present, future, S_enPassant, S_castling, S_promotion);
 }
 
 //---------------------------------------------------------------------------------------
@@ -497,7 +505,7 @@ void movePiece(void)
    std::string move_to;
    getline(cin, move_to);
 
-      if ( move_to.length() > 2 )
+   if ( move_to.length() > 2 )
    {
       createNextMessage("You should type only two characters (column and row)\n");
       return;
@@ -545,25 +553,65 @@ void movePiece(void)
    }
 
    // Is that move allowed?
-   Chess::EnPassant S_enPassant = { 0 };
-   Chess::Castling  S_castling = { 0 };
+   Chess::EnPassant  S_enPassant  = { 0 };
+   Chess::Castling   S_castling   = { 0 };
+   Chess::Promotion  S_promotion  = { 0 };
 
-   if ( false == isMoveValid(present, future, &S_enPassant, &S_castling) )
+   if ( false == isMoveValid(present, future, &S_enPassant, &S_castling, &S_promotion) )
    {
       createNextMessage("[Invalid] Piece can not move to that square!\n");
       return;
+   }
+   
+   // ---------------------------------------------------
+   // Promotion: user most choose a piece to
+   // replace the pawn
+   // ---------------------------------------------------
+   if ( S_promotion.bApplied == true )
+   {
+      cout << "Promote to (Q, R, N, B): ";
+      std::string piece;
+      getline(cin, piece);
+
+      if ( piece.length() > 1 )
+      {
+         createNextMessage("You should type only one character (Q, R, N or B)\n");
+         return;
+      }
+
+      char chPromoted = toupper(piece[0]);
+
+      if ( chPromoted != 'Q' && chPromoted != 'R' && chPromoted != 'N' && chPromoted != 'B' )
+      {
+         createNextMessage("Invalid character.\n");
+         return;
+      }
+
+      S_promotion.chBefore = current_game->getPieceAtPosition(present.iRow, present.iColumn);
+
+      if (Chess::WHITE_PLAYER == current_game->getCurrentTurn())
+      {
+         S_promotion.chAfter = toupper(chPromoted);
+      }
+      else
+      {
+         S_promotion.chAfter = tolower(chPromoted);
+      }
+
+      to_record += '=';
+      to_record += toupper(chPromoted); // always log with a capital letter
    }
 
    // ---------------------------------------------------
    // Log the move: do it prior to making the move
    // because we need the getCurrentTurn()
    // ---------------------------------------------------
-   current_game->logMove(to_record);
+   current_game->logMove( to_record );
 
    // ---------------------------------------------------
    // Make the move
    // ---------------------------------------------------
-   makeTheMove(present, future, &S_enPassant, &S_castling);
+   makeTheMove(present, future, &S_enPassant, &S_castling, &S_promotion);
 
    // ---------------------------------------------------------------
    // Check if this move we just did put the oponent's king in check
@@ -666,8 +714,15 @@ void loadGame(void)
 
          // There might be one or two moves in the line
          string loaded_move[2];
-         loaded_move[0] = line.substr(0, 5);
-         loaded_move[1] = line.substr(line.find("|") + 2, 5);
+         
+         // Find the separator and subtract one
+         std::size_t separator = line.find(" |");
+
+         // For the first move, read from the beginning of the string until the separator
+         loaded_move[0] = line.substr(0, separator);
+
+         // For the second move, read from the separator until the end of the string (omit second parameter)
+         loaded_move[1] = line.substr(line.find("|") + 2);
 
          for (int i = 0; i < 2 && loaded_move[i] != ""; i++)
          {
@@ -675,7 +730,9 @@ void loadGame(void)
             Chess::Position from;
             Chess::Position to;
 
-            current_game->parseMove(loaded_move[i], &from, &to);
+            char chPromoted = 0;
+
+            current_game->parseMove(loaded_move[i], &from, &to, &chPromoted);
 
             // Check if line is valid
             if ( from.iColumn < 0 || from.iColumn > 7 ||
@@ -684,15 +741,18 @@ void loadGame(void)
                  to.iRow      < 0 || to.iRow      > 7 )
             {
                createNextMessage("[Invalid] Can't load this game because there are invalid lines!\n");
+
+               // Clear everything and return
+               current_game = new Game();
                return;
             }
-
 
             // Is that move allowed? (should be because we already validated before saving)
             Chess::EnPassant S_enPassant = { 0 };
             Chess::Castling  S_castling  = { 0 };
+            Chess::Promotion S_promotion = { 0 };
 
-            if ( false == isMoveValid(from, to, &S_enPassant, &S_castling) )
+            if ( false == isMoveValid(from, to, &S_enPassant, &S_castling, &S_promotion) )
             {
                createNextMessage("[Invalid] Can't load this game because there are invalid moves!\n");
 
@@ -701,11 +761,38 @@ void loadGame(void)
                return;
             }
 
+            // ---------------------------------------------------
+            // A promotion occurred
+            // ---------------------------------------------------
+            if ( S_promotion.bApplied == true )
+            {
+               if ( chPromoted != 'Q' && chPromoted != 'R' && chPromoted != 'N' && chPromoted != 'B' )
+               {
+                  createNextMessage("[Invalid] Can't load this game because there is an invalid promotion!\n");
+
+                  // Clear everything and return
+                  current_game = new Game();
+                  return;
+               }
+
+               S_promotion.chBefore = current_game->getPieceAtPosition(from.iRow, from.iColumn);
+
+               if (Chess::WHITE_PLAYER == current_game->getCurrentTurn())
+               {
+                  S_promotion.chAfter = toupper(chPromoted);
+               }
+               else
+               {
+                  S_promotion.chAfter = tolower(chPromoted);
+               }
+            }
+
+
             // Log the move
             current_game->logMove(loaded_move[i]);
 
             // Make the move
-            makeTheMove(from, to, &S_enPassant, &S_castling);
+            makeTheMove(from, to, &S_enPassant, &S_castling, &S_promotion);
          }
       }
 
