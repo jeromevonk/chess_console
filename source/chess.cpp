@@ -747,7 +747,7 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
 
    // d) Direction: L_SHAPED
    {
-      // Check if the piece is put in jeopardy by a knigh
+      // Check if the piece is put in jeopardy by a knight
 
       Position knight_moves[8] = { {  1, -2 }, {  2, -1 }, {  2, 1 }, {  1, 2 },
                                    { -1, -2 }, { -2, -1 }, { -2, 1 }, { -1, 2 } };
@@ -1425,13 +1425,13 @@ bool Game::isCheckMate()
 {
    bool bCheckmate = false;
 
-   // 1. First of all, it the king in check?
+   // 1. First of all, is the king in check?
    if ( false == playerKingInCheck() )
    {
       return false;
    }
 
-   // 2. Can the king move the other square?
+   // 2. Can the king move to another square?
    Chess::Position king_moves[8]  = { {  1, -1 },{  1, 0 },{  1,  1 }, { 0,  1 },
                                       { -1,  1 },{ -1, 0 },{ -1, -1 }, { 0, -1 } };
 
@@ -1451,6 +1451,7 @@ bool Game::isCheckMate()
       if ( EMPTY_SQUARE != getPieceAtPosition(iRowToTest, iColumnToTest) )
       {
          // That square is not empty, so no need to test
+         // TODO: what if it's an oponent piece?
          continue;
       }
 
@@ -1463,7 +1464,7 @@ bool Game::isCheckMate()
 
       // Now, for every possible move of the king, check if it would be in jeopardy
       // Since the move has already been made, current_game->getCurrentTurn() now will return 
-      // the next player's color. And it is in fact this king that we want to check for jeopardy
+      // the next player's color. And it is in fact this king that we want to check for
       Chess::UnderAttack king_moved = isUnderAttack( iRowToTest, iColumnToTest, getCurrentTurn(), &intended_move );
 
       if ( false == king_moved.bUnderAttack )
