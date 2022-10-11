@@ -1,4 +1,3 @@
-CC=gcc
 CXX=g++
 
 BUILD_DIR = ../build/lnx
