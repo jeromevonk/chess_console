@@ -47,7 +47,7 @@ void printMessage(void)
    next_message = "";
 }
 
-void printLine(int iLine, int iColor1, int iColor2, Game& game)
+void printLine(int iLine, const char* chColor1, const char* chColor2, Game& game)
 {
    // Example (for CELL = 6):
 
@@ -79,11 +79,18 @@ void printLine(int iLine, int iColor1, int iColor2, Game& game)
             // For 6 sub-columns, sub-column 3
             if ( subLine == 1 && subColumn == 3)
             {
-               cout << char(game.getPieceAtPosition(iLine, iPair*2) != 0x20 ? game.getPieceAtPosition(iLine, iPair*2) : iColor1);
+               if (game.getPieceAtPosition(iLine, iPair*2) != 0x20) 
+               {
+                  cout << game.getPieceAtPosition(iLine, iPair*2);
+               } 
+               else 
+               {
+                  cout << chColor1;
+               }
             }
             else
             {
-               cout << char(iColor1);
+               cout << chColor1;
             }
          }
 
@@ -95,11 +102,18 @@ void printLine(int iLine, int iColor1, int iColor2, Game& game)
             // For 6 sub-columns, sub-column 3
             if ( subLine == 1 && subColumn == 3)
             {
-               cout << char(game.getPieceAtPosition(iLine,iPair*2+1) != 0x20 ? game.getPieceAtPosition(iLine,iPair*2+1) : iColor2);
+               if (game.getPieceAtPosition(iLine, iPair*2+1) != 0x20) 
+               {
+                  cout << game.getPieceAtPosition(iLine, iPair*2+1);
+               } 
+               else 
+               {
+                  cout << chColor2;
+               }
             }
             else
             {
-               cout << char(iColor2);
+               cout << chColor2;
             }
          }
       }

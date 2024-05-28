@@ -1,8 +1,9 @@
 #pragma once
 #include "chess.h"
 
-#define WHITE_SQUARE 0xDB
-#define BLACK_SQUARE 0xFF
+#define WHITE_SQUARE " "
+#define BLACK_SQUARE "█"
+
 #define EMPTY_SQUARE 0x20
 
 void createNextMessage( string msg );
