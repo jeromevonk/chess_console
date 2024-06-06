@@ -38,6 +38,16 @@ public:
       L_SHAPE
    };
 
+   enum Piece
+   {
+      PAWN = 'P',
+      KNIGHT = 'N',
+      BISHOP = 'B',
+      ROOK = 'R',
+      QUEEN = 'Q',
+      KING = 'K',
+   };
+
    struct Position
    {
       int iRow;
@@ -76,6 +86,7 @@ public:
    {
       Position  pos;
       Direction dir;
+      char chPiece;
    };
 
    struct UnderAttack
@@ -91,15 +102,16 @@ public:
       // Keep in mind that pieces[0][0] represents A1
       // pieces[1][1] represents B2 and so on.
       // Letters in CAPITAL are white
-      { 'R',  'N',  'B',  'Q',  'K',  'B',  'N',  'R' },
-      { 'P',  'P',  'P',  'P',  'P',  'P',  'P',  'P' },
+      { 'R',  'N',  'B',  'Q',  'K',  'B',  'N',  'R'  },
+      { 'P',  'P',  'P',  'P',  'P',  'P',  'P',  'P'  },
       { 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 },
       { 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 },
       { 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 },
       { 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 },
-      { 'p',  'p',  'p',  'p',  'p',  'p',  'p',  'p' },
-      { 'r',  'n',  'b',  'q',  'k',  'b',  'n',  'r' },
+      { 'p',  'p',  'p',  'p',  'p',  'p',  'p',  'p'  },
+      { 'r',  'n',  'b',  'q',  'k',  'b',  'n',  'r'  }, 
    };
+
 };
 
 class Game : Chess
@@ -107,6 +119,8 @@ class Game : Chess
 public:
    Game();
    ~Game();
+
+   void setBoard(const char (&boardState)[8][8]);
 
    void movePiece( Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling, Chess::Promotion* S_promotion );
 
@@ -122,7 +136,9 @@ public:
 
    char getPiece_considerMove( int iRow, int iColumn, IntendedMove* intended_move = nullptr );
 
-   UnderAttack isUnderAttack( int iRow, int iColumn, int iColor, IntendedMove* pintended_move = nullptr );
+   bool isPieceProtected(int iRow, int iColumn, int iColor);
+
+   UnderAttack isUnderAttack( int iRow, int iColumn, int iColor, IntendedMove* pintended_move = nullptr);
 
    bool isReachable( int iRow, int iColumn, int iColor );
 
@@ -141,6 +157,8 @@ public:
    bool wouldKingBeInCheck( char chPiece, Position present, Position future, EnPassant* S_enPassant );
 
    Position findKing( int iColor );
+
+   void addAtacker( UnderAttack* attack, int iRow, int iColumn, Direction dir, char chPiece );
 
    void changeTurns( void );
 

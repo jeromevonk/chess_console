@@ -3,8 +3,6 @@
 #include "user_interface.h"
 #include "chess.h"
 
-#include "debug.h"
-
 
 //---------------------------------------------------------------------------------------
 // Global variable
@@ -321,7 +319,7 @@ bool isMoveValid(Chess::Position present, Chess::Position future, Chess::EnPassa
 
       default:
       {
-         cout << "!!!!Should not reach here. Invalid piece: " << char(chPiece) << "\n\n\n";
+         cout << "!!!!Should not reach here. Invalid piece: " << char(chPiece) << "\n\n\n"; // TODO: throw error
       }
       break;
    }
@@ -614,7 +612,7 @@ void movePiece(void)
    makeTheMove(present, future, &S_enPassant, &S_castling, &S_promotion);
 
    // ---------------------------------------------------------------
-   // Check if this move we just did put the oponent's king in check
+   // Check if this move puts the oponent's king in check
    // Keep in mind that player turn has already changed
    // ---------------------------------------------------------------
    if ( true == current_game->playerKingInCheck() )
@@ -632,8 +630,6 @@ void movePiece(void)
       }
       else
       { 
-         // Add to the string with '+=' because it's possible that
-         // there is already one message (e.g., piece captured)
          if (Chess::WHITE_PLAYER == current_game->getCurrentTurn())
          {
             appendToNextMessage("White king is in check!\n");
@@ -693,113 +689,125 @@ void loadGame(void)
 
    if (ifs)
    {
-      // First, reset the pieces
-      if (NULL != current_game)
+      try
       {
-         delete current_game;
-      }
-
-      current_game = new Game();
-
-      // Now, read the lines from the file and then make the moves
-      std::string line;
-
-      while (std::getline(ifs, line) )
-      {
-         // Skip lines that starts with "[]"
-         if ( 0 == line.compare(0, 1, "["))
+         // First, reset the pieces
+         if (NULL != current_game)
          {
-            continue;
+            delete current_game;
          }
 
-         // There might be one or two moves in the line
-         string loaded_move[2];
+         current_game = new Game();
          
-         // Find the separator and subtract one
-         std::size_t separator = line.find(" |");
+         // Now, read the lines from the file and then make the moves
+         std::string line;
 
-         // For the first move, read from the beginning of the string until the separator
-         loaded_move[0] = line.substr(0, separator);
-
-         // For the second move, read from the separator until the end of the string (omit second parameter)
-         loaded_move[1] = line.substr(line.find("|") + 2);
-
-         for (int i = 0; i < 2 && loaded_move[i] != ""; i++)
+         while (std::getline(ifs, line) )
          {
-            // Parse the line
-            Chess::Position from;
-            Chess::Position to;
-
-            char chPromoted = 0;
-
-            current_game->parseMove(loaded_move[i], &from, &to, &chPromoted);
-
-            // Check if line is valid
-            if ( from.iColumn < 0 || from.iColumn > 7 ||
-                 from.iRow    < 0 || from.iRow    > 7 ||
-                 to.iColumn   < 0 || to.iColumn   > 7 ||
-                 to.iRow      < 0 || to.iRow      > 7 )
+            // Skip lines that starts with "[]"
+            if ( 0 == line.compare(0, 1, "["))
             {
-               createNextMessage("[Invalid] Can't load this game because there are invalid lines!\n");
-
-               // Clear everything and return
-               current_game = new Game();
-               return;
+               continue;
             }
 
-            // Is that move allowed? (should be because we already validated before saving)
-            Chess::EnPassant S_enPassant = { 0 };
-            Chess::Castling  S_castling  = { 0 };
-            Chess::Promotion S_promotion = { 0 };
+            // There might be one or two moves in the line
+            string loaded_move[2];
 
-            if ( false == isMoveValid(from, to, &S_enPassant, &S_castling, &S_promotion) )
+            // Find the separator and subtract one
+            std::size_t separator = line.find(" |");
+
+            // For the first move, read from the beginning of the string until the separator
+            loaded_move[0] = line.substr(0, separator);
+
+            // For the second move, read from the separator until the end of the string (omit second parameter)
+            loaded_move[1] = line.substr(line.find("|") + 2);
+            
+
+            for (int i = 0; i < 2 && loaded_move[i] != ""; i++)
             {
-               createNextMessage("[Invalid] Can't load this game because there are invalid moves!\n");
+               // Parse the line
+               Chess::Position from;
+               Chess::Position to;
 
-               // Clear everything and return
-               current_game = new Game();
-               return;
-            }
+               char chPromoted = 0;
 
-            // ---------------------------------------------------
-            // A promotion occurred
-            // ---------------------------------------------------
-            if ( S_promotion.bApplied == true )
-            {
-               if ( chPromoted != 'Q' && chPromoted != 'R' && chPromoted != 'N' && chPromoted != 'B' )
+               current_game->parseMove(loaded_move[i], &from, &to, &chPromoted);
+
+               // Check if line is valid
+               if ( from.iColumn < 0 || from.iColumn > 7 ||
+                  from.iRow    < 0 || from.iRow    > 7 ||
+                  to.iColumn   < 0 || to.iColumn   > 7 ||
+                  to.iRow      < 0 || to.iRow      > 7 )
                {
-                  createNextMessage("[Invalid] Can't load this game because there is an invalid promotion!\n");
+                  createNextMessage("[Invalid] Can't load this game because there are invalid lines!\n");
 
                   // Clear everything and return
                   current_game = new Game();
                   return;
                }
 
-               S_promotion.chBefore = current_game->getPieceAtPosition(from.iRow, from.iColumn);
+               // Is that move allowed? (should be because we already validated before saving)
+               Chess::EnPassant S_enPassant = { 0 };
+               Chess::Castling  S_castling  = { 0 };
+               Chess::Promotion S_promotion = { 0 };
 
-               if (Chess::WHITE_PLAYER == current_game->getCurrentTurn())
+               if ( false == isMoveValid(from, to, &S_enPassant, &S_castling, &S_promotion) )
                {
-                  S_promotion.chAfter = toupper(chPromoted);
+                  createNextMessage("[Invalid] Can't load this game because there are invalid moves!\n");
+
+                  // Clear everything and return
+                  current_game = new Game();
+                  return;
                }
-               else
+
+               // ---------------------------------------------------
+               // A promotion occurred
+               // ---------------------------------------------------
+               if ( S_promotion.bApplied == true )
                {
-                  S_promotion.chAfter = tolower(chPromoted);
+                  if ( chPromoted != 'Q' && chPromoted != 'R' && chPromoted != 'N' && chPromoted != 'B' )
+                  {
+                     createNextMessage("[Invalid] Can't load this game because there is an invalid promotion!\n");
+
+                     // Clear everything and return
+                     current_game = new Game();
+                     return;
+                  }
+
+                  S_promotion.chBefore = current_game->getPieceAtPosition(from.iRow, from.iColumn);
+
+                  if (Chess::WHITE_PLAYER == current_game->getCurrentTurn())
+                  {
+                     S_promotion.chAfter = toupper(chPromoted);
+                  }
+                  else
+                  {
+                     S_promotion.chAfter = tolower(chPromoted);
+                  }
                }
+
+
+               // Log the move
+               current_game->logMove(loaded_move[i]);
+
+               // Make the move
+               makeTheMove(from, to, &S_enPassant, &S_castling, &S_promotion);
             }
-
-
-            // Log the move
-            current_game->logMove(loaded_move[i]);
-
-            // Make the move
-            makeTheMove(from, to, &S_enPassant, &S_castling, &S_promotion);
          }
+
+         // Extra line after the user input
+         createNextMessage("Game loaded from " + file_name + "\n");
+
+         return;
       }
-
-      // Extra line after the user input
-      createNextMessage("Game loaded from " + file_name + "\n");
-
-      return;
+      catch (const std::out_of_range& e) {
+        // Catch block to handle the exception
+        std::cerr << "Exception caught: " << e.what() << std::endl;
+      }
+      catch (...) {
+         // Catch block to handle any other exception
+         std::cerr << "Unknown exception caught" << std::endl;
+      }
    }
    else
    {

@@ -20,7 +20,11 @@ void appendToNextMessage( string msg )
 }
 void clearScreen(void)
 {
-   system("cls");
+   #ifdef _WIN32
+      system("cls");
+   #else
+      system("clear");
+   #endif
 }
 
 void printLogo(void)
@@ -47,7 +51,7 @@ void printMessage(void)
    next_message = "";
 }
 
-void printLine(int iLine, const char* chColor1, const char* chColor2, Game& game)
+void printLine(int iLine, const char* pchColor1, const char* pchColor2, Game& game)
 {
    // Example (for CELL = 6):
 
@@ -85,12 +89,12 @@ void printLine(int iLine, const char* chColor1, const char* chColor2, Game& game
                } 
                else 
                {
-                  cout << chColor1;
+                  cout << pchColor1;
                }
             }
             else
             {
-               cout << chColor1;
+               cout << pchColor1;
             }
          }
 
@@ -108,12 +112,12 @@ void printLine(int iLine, const char* chColor1, const char* chColor2, Game& game
                } 
                else 
                {
-                  cout << chColor2;
+                  cout << pchColor2;
                }
             }
             else
             {
-               cout << chColor2;
+               cout << pchColor2;
             }
          }
       }
@@ -125,7 +129,6 @@ void printLine(int iLine, const char* chColor1, const char* chColor2, Game& game
       }
 
       cout << "\n";
-
    }
 }
 
@@ -136,21 +139,21 @@ void printSituation(Game& game)
    {
       cout << "Last moves:\n";
 
-      int iMoves = game.rounds.size();
-      int iToShow = iMoves >= 5 ? 5 : iMoves;
+      size_t uiMoves = game.rounds.size();
+      size_t uiToShow = uiMoves >= 5 ? 5 : uiMoves;
 
       string space = "";
 
-      while( iToShow-- )
+      while( uiToShow-- )
       {
-         if ( iMoves < 10 )
+         if ( uiMoves < 10 )
          {
             // Add an extra hardspace to allign the numbers that are smaller than 10
             space = " ";
          }
 
-         cout << space << iMoves << " ..... " <<  game.rounds[iMoves-1].white_move.c_str() << " | " << game.rounds[iMoves - 1].black_move.c_str() << "\n";
-         iMoves--;
+         cout << space << uiMoves << " ..... " <<  game.rounds[uiMoves-1].white_move.c_str() << " | " << game.rounds[uiMoves - 1].black_move.c_str() << "\n";
+         uiMoves--;
       }
 
       cout << "\n";
@@ -200,4 +203,6 @@ void printBoard(Game& game)
          printLine(iLine, WHITE_SQUARE, BLACK_SQUARE, game);
       }
    }
+
+   cout << "\n   A     B     C     D     E     F     G     H\n";
 }

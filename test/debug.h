@@ -1,15 +1,12 @@
 #pragma once
-#ifdef WIN32
 
 #include <io.h>
 #include <fcntl.h>
 
 
 //---------------------------------------------------------------------------------------
-// Debug
-// Only debug stuff, that should be removed in the release version
+// Some useful positions
 //---------------------------------------------------------------------------------------
-
 
 const char ach_debug_rooks_only[8][8] =
 {

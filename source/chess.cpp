@@ -43,31 +43,31 @@ std::string Chess::describePiece(char chPiece)
 
       switch (toupper(chPiece))
       {
-         case 'P':
+         case PAWN:
          {
             description += "pawn";
          }
          break;
 
-         case 'N':
+         case KNIGHT:
          {
             description += "knight";
          }
          break;
 
-         case 'B':
+         case BISHOP:
          {
             description += "bishop";
          }
          break;
 
-         case 'R':
+         case ROOK:
          {
             description += "rook";
          }
          break;
 
-         case 'Q':
+         case QUEEN:
          {
             description += "queen";
          }
@@ -119,6 +119,14 @@ Game::~Game()
    white_captured.clear();
    black_captured.clear();
    rounds.clear();
+}
+
+// -------------------------------
+// For testing purposes
+// -------------------------------
+void Game::setBoard(const char (&boardState)[8][8])
+{
+   memcpy(board, boardState, sizeof(char) * 8 * 8);
 }
 
 void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPassant, Chess::Castling* S_castling, Chess::Promotion* S_promotion)
@@ -224,13 +232,13 @@ void Game::movePiece(Position present, Position future, Chess::EnPassant* S_enPa
    }
 
    // Castling requirements
-   if ( 'K' == toupper(chPiece) )
+   if ( KING == toupper(chPiece) )
    {
       // After the king has moved once, no more castling allowed
       m_bCastlingKingSideAllowed[getCurrentTurn()]  = false;
       m_bCastlingQueenSideAllowed[getCurrentTurn()] = false;
    }
-   else if ('R' == toupper(chPiece) )
+   else if (ROOK == toupper(chPiece) )
    {
       // If the rook moved from column 'A', no more castling allowed on the queen side
       if ( 0 == present.iColumn )
@@ -265,7 +273,7 @@ void Game::undoLastMove()
    char chPiece = getPieceAtPosition(to.iRow, to.iColumn);
 
    // Moving it back
-   // If there was a castling
+   // If there was a promotion
    if ( true == m_undo.promotion.bApplied )
    {
       board[from.iRow][from.iColumn] = m_undo.promotion.chBefore;
@@ -315,7 +323,7 @@ void Game::undoLastMove()
       board[to.iRow][to.iColumn] = EMPTY_SQUARE;
    }
 
-   // If there was a castling
+   // If there was castling
    if ( m_undo.castling.bApplied )
    {
       char chRook = getPieceAtPosition(m_undo.castling.rook_after.iRow, m_undo.castling.rook_after.iColumn);
@@ -404,7 +412,349 @@ char Game::getPiece_considerMove(int iRow, int iColumn, IntendedMove* intended_m
    return chPiece;
 }
 
-Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, IntendedMove* pintended_move)
+bool Game::isPieceProtected(int iRow, int iColumn, int iColor)
+{
+   // a) Direction: HORIZONTAL
+   {
+      // Check all the way to the right
+      for (int i = iColumn + 1; i < 8; i++)
+      {
+         char chPieceFound = getPiece_considerMove(iRow, i, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         if ( iColor != getPieceColor(chPieceFound) )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK ) )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iColumn +1          ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not attack horizontally, so no problem
+            break;
+         }
+      }
+
+      // Check all the way to the left
+      for (int i = iColumn - 1; i >= 0; i--)
+      {
+         char chPieceFound = getPiece_considerMove(iRow, i, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         if  (iColor != getPieceColor(chPieceFound) )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK ) )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iColumn -1          ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not attack horizontally, so no problem
+            break;
+         }
+      }
+   }
+
+   // b) Direction: VERTICAL
+   {
+      // Check all the way up
+      for (int i = iRow + 1; i < 8; i++)
+      {
+         char chPieceFound = getPiece_considerMove(i, iColumn, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         if ( iColor != getPieceColor(chPieceFound) )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK )  )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow +1             ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not protect in this direction
+            break;
+         }
+      }
+
+      // Check all the way down
+      for (int i = iRow - 1; i >= 0; i--)
+      {
+         char chPieceFound = getPiece_considerMove(i, iColumn, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         if ( iColor != getPieceColor(chPieceFound) )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ((toupper(chPieceFound) == QUEEN) ||
+                  (toupper(chPieceFound) == ROOK ) )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow -1             ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not protect in this direction
+            break;
+         }
+      }
+   }
+
+   // c) Direction: DIAGONAL
+   {
+      // Check the diagonal up-right
+      for (int i = iRow + 1, j = iColumn + 1; i < 8 && j < 8; i++, j++)
+      {
+         char chPieceFound = getPiece_considerMove(i, j, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor != iPieceColor )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    + 1         ) &&
+                   (   j        == iColumn + 1         ) &&
+                   (iPieceColor == BLACK_PIECE         ) ) // only a BLACK pawn can protect in this direction
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP) )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    + 1         ) &&
+                   (   j   == iColumn + 1         ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not protect in this direction
+            break;
+         }
+      }
+
+      // Check the diagonal up-left
+      for (int i = iRow + 1, j = iColumn - 1; i < 8 && j >= 0; i++, j--)
+      {
+         char chPieceFound = getPiece_considerMove(i, j, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor != iPieceColor )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    + 1         ) &&
+                   (   j        == iColumn - 1         ) &&
+                   (iPieceColor == BLACK_PIECE         ) ) /// only a BLACK pawn can protect in this direction
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP))
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    + 1         ) &&
+                   (   j   == iColumn - 1         ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not protect in this direction
+            break;
+         }
+      }
+
+      // Check the diagonal down-right
+      for (int i = iRow - 1, j = iColumn + 1; i >= 0 && j < 8; i--, j++)
+      {
+         char chPieceFound = getPiece_considerMove(i, j, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor != iPieceColor)
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    - 1         ) &&
+                   (   j        == iColumn + 1         ) &&
+                   (iPieceColor == WHITE_PIECE         ) ) // only a WHITE pawn can protect in this direction
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP) )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    - 1         ) &&
+                   (   j   == iColumn + 1         ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not protect in this direction
+            break;
+         }
+      }
+
+      // Check the diagonal down-left
+      for (int i = iRow - 1, j = iColumn - 1; i >= 0 && j >= 0; i--, j--)
+      {
+         char chPieceFound = getPiece_considerMove(i, j, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor != iPieceColor )
+         {
+            // Not a piece from the same color
+            break;
+         }
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    - 1         ) &&
+                   (   j        == iColumn - 1         ) &&
+                   (iPieceColor == WHITE_PIECE         ) ) // only a WHITE pawn can protect in this direction
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == QUEEN  ) ||
+                   (toupper(chPieceFound) == BISHOP ) )
+         {
+            return true;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    - 1         ) &&
+                   (   j   == iColumn - 1         ) )
+         {
+            return true;
+         }
+         else
+         {
+            // There is a piece that does not protect in this direction
+            break;
+         }
+      }
+   }
+
+   // d) Direction: L_SHAPE
+   {
+      // Check if the piece is protected by a knight
+
+      Position knight_moves[8] = { {  1, -2 }, {  2, -1 }, {  2, 1 }, {  1, 2 },
+                                   { -1, -2 }, { -2, -1 }, { -2, 1 }, { -1, 2 } };
+      for (int i = 0; i < 8; i++)
+      {
+         int iRowToTest    = iRow    + knight_moves[i].iRow;
+         int iColumnToTest = iColumn + knight_moves[i].iColumn;
+
+         if (iRowToTest < 0 || iRowToTest > 7 || iColumnToTest < 0 || iColumnToTest > 7)
+         {
+            // Move does not make sense, this square does not exist
+            continue;
+         }
+
+         char chPieceFound = getPiece_considerMove(iRowToTest, iColumnToTest, nullptr);
+         if (EMPTY_SQUARE == chPieceFound)
+         {
+            // This square is empty, move on
+            continue;
+         }
+
+         if (iColor != getPieceColor(chPieceFound))
+         {
+            // Not a piece from the same color
+            continue;
+         }
+         else if ( (toupper(chPieceFound) == KNIGHT) )
+         {
+            return true;
+         }
+      }
+   }
+
+   return false;
+}
+
+Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, IntendedMove* pintended_move )
 {
    UnderAttack attack = { 0 };
 
@@ -425,16 +775,18 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'R') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK ) ) 
          {
             // There is a queen or a rook to the right, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow = iRow;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = i;
-            attack.attacker[attack.iNumAttackers-1].dir = HORIZONTAL;
+            addAtacker(&attack, iRow, i, HORIZONTAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iColumn +1          ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, iRow, i, HORIZONTAL, toupper(chPieceFound));
             break;
          }
          else
@@ -459,16 +811,18 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'R') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK ) )
          {
-            // There is a queen or a rook to the right, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = iRow;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = i;
-            attack.attacker[attack.iNumAttackers-1].dir = HORIZONTAL;
+            // There is a queen or a rook to the left, so the piece is in jeopardy
+            addAtacker(&attack, iRow, i, HORIZONTAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iColumn -1         ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, iRow, i, HORIZONTAL, toupper(chPieceFound));
             break;
          }
          else
@@ -496,16 +850,18 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'R')  )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) ==  ROOK) )
          {
-            // There is a queen or a rook to the right, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = iColumn;
-            attack.attacker[attack.iNumAttackers-1].dir = VERTICAL;
+            // There is a queen or a rook up, so the piece is in jeopardy
+            addAtacker(&attack, i, iColumn, VERTICAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow +1            ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, i, iColumn, VERTICAL, toupper(chPieceFound));
             break;
          }
          else
@@ -530,16 +886,18 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ((toupper(chPieceFound) == 'Q') ||
-                  (toupper(chPieceFound) == 'R') )
+         else if ((toupper(chPieceFound) == QUEEN) ||
+                  (toupper(chPieceFound) == ROOK ) )
          {
-            // There is a queen or a rook to the right, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = iColumn;
-            attack.attacker[attack.iNumAttackers-1].dir = VERTICAL;
+            // There is a queen or a rook down, so the piece is in jeopardy
+            addAtacker(&attack, i, iColumn, VERTICAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow -1            ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, i, iColumn, VERTICAL, toupper(chPieceFound));
             break;
          }
          else
@@ -562,35 +920,34 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             continue;
          }
 
-         if ( iColor == getPieceColor(chPieceFound) )
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor == iPieceColor )
          {
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'P' ) &&
-                   (   i   == iRow    + 1        ) &&
-                   (   j   == iColumn + 1        ) &&
-                   (iColor == WHITE_PIECE ) )
+         else if ( (toupper(chPieceFound) == PAWN     ) &&
+                   (   i        == iRow    + 1        ) &&
+                   (   j        == iColumn + 1        ) &&
+                   (iPieceColor == BLACK_PIECE        ) ) // only a BLACK pawn can attack this direction
          {
             // A pawn only puts another piece in jeopardy if it's (diagonally) right next to it
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B'))
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP))
          {
             // There is a queen or a bishop in that direction, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    + 1        ) &&
+                   (   j   == iColumn + 1        ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
          else
@@ -601,7 +958,7 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
       }
 
       // Check the diagonal up-left
-      for (int i = iRow + 1, j = iColumn - 1; i < 8 && j > 0; i++, j--)
+      for (int i = iRow + 1, j = iColumn - 1; i < 8 && j >= 0; i++, j--)
       {
          char chPieceFound = getPiece_considerMove(i, j, pintended_move);
          if (EMPTY_SQUARE == chPieceFound)
@@ -610,35 +967,34 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             continue;
          }
 
-         if ( iColor == getPieceColor(chPieceFound) )
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor == iPieceColor )
          {
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'P' ) &&
-                   (   i   == iRow    + 1        ) &&
-                   (   j   == iColumn - 1        ) &&
-                   (iColor == WHITE_PIECE ) )
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    + 1         ) &&
+                   (   j        == iColumn - 1         ) &&
+                   (iPieceColor == BLACK_PIECE         ) ) // only a BLACK pawn can attack this direction
          {
             // A pawn only puts another piece in jeopardy if it's (diagonally) right next to it
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B'))
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP))
          {
             // There is a queen or a bishop in that direction, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    + 1        ) &&
+                   (   j   == iColumn - 1        ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
          else
@@ -649,7 +1005,7 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
       }
 
       // Check the diagonal down-right
-      for (int i = iRow - 1, j = iColumn + 1; i > 0 && j < 8; i--, j++)
+      for (int i = iRow - 1, j = iColumn + 1; i >= 0 && j < 8; i--, j++)
       {
          char chPieceFound = getPiece_considerMove(i, j, pintended_move);
          if (EMPTY_SQUARE == chPieceFound)
@@ -658,35 +1014,34 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             continue;
          }
 
-         if ( iColor == getPieceColor(chPieceFound) )
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor == iPieceColor )
          {
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'P' ) &&
-                   (   i   == iRow    - 1        ) &&
-                   (   j   == iColumn + 1        ) &&
-                   (iColor == BLACK_PIECE ) )
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    - 1         ) &&
+                   (   j        == iColumn + 1         ) &&
+                   (iPieceColor == WHITE_PIECE         ) ) // only a WHITE pawn can attack this direction
          {
             // A pawn only puts another piece in jeopardy if it's (diagonally) right next to it
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP) )
          {
             // There is a queen or a bishop in that direction, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    - 1        ) &&
+                   (   j   == iColumn + 1        ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
          else
@@ -697,7 +1052,7 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
       }
 
       // Check the diagonal down-left
-      for (int i = iRow - 1, j = iColumn - 1; i > 0 && j > 0; i--, j--)
+      for (int i = iRow - 1, j = iColumn - 1; i >= 0 && j >= 0; i--, j--)
       {
          char chPieceFound = getPiece_considerMove(i, j, pintended_move);
          if (EMPTY_SQUARE == chPieceFound)
@@ -706,35 +1061,34 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             continue;
          }
 
-         if ( iColor == getPieceColor(chPieceFound) )
+         int iPieceColor = getPieceColor(chPieceFound);
+         if ( iColor == iPieceColor)
          {
             // This is a piece of the same color, so no problem
             break;
          }
-         else if ( (toupper(chPieceFound) == 'P' ) &&
-                   (   i   == iRow    - 1        ) &&
-                   (   j   == iColumn - 1        ) &&
-                   (iColor == BLACK_PIECE ) )
+         else if ( (toupper(chPieceFound) == PAWN      ) &&
+                   (   i        == iRow    - 1         ) &&
+                   (   j        == iColumn - 1         ) &&
+                   (iPieceColor == WHITE_PIECE         ) ) // only a WHITE pawn can attack this direction
          {
             // A pawn only puts another piece in jeopardy if it's (diagonally) right next to it
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                     (toupper(chPieceFound) == 'B') )
+         else if ( (toupper(chPieceFound) == QUEEN  ) ||
+                   (toupper(chPieceFound) == BISHOP ) )
          {
             // There is a queen or a bishop in that direction, so the piece is in jeopardy
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = i;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = j;
-            attack.attacker[attack.iNumAttackers-1].dir = DIAGONAL;
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
+            break;
+         }
+         else if ( (toupper(chPieceFound) == KING ) &&
+                   (   i   == iRow    - 1         ) &&
+                   (   j   == iColumn - 1         ) )
+         {
+            // A king puts another piece in jeopardy if it's one square distant
+            addAtacker(&attack, i, j, DIAGONAL, toupper(chPieceFound));
             break;
          }
          else
@@ -745,7 +1099,7 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
       }
    }
 
-   // d) Direction: L_SHAPED
+   // d) Direction: L_SHAPE
    {
       // Check if the piece is put in jeopardy by a knight
 
@@ -774,13 +1128,9 @@ Chess::UnderAttack Game::isUnderAttack(int iRow, int iColumn, int iColor, Intend
             // This is a piece of the same color, so no problem
             continue;
          }
-         else if ( (toupper(chPieceFound) == 'N') )
+         else if ( (toupper(chPieceFound) == KNIGHT) )
          {
-            attack.bUnderAttack = true;
-            attack.iNumAttackers += 1;
-
-            attack.attacker[attack.iNumAttackers-1].pos.iRow    = iRowToTest;
-            attack.attacker[attack.iNumAttackers-1].pos.iColumn = iColumnToTest;
+            addAtacker(&attack, iRowToTest, iColumnToTest, L_SHAPE, toupper(chPieceFound));
             break;
          }
       }
@@ -810,8 +1160,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'R') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK ) )
          {
             // There is a queen or a rook to the right, so the square is reachable
             bReachable = true;
@@ -839,8 +1189,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'R') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) ==  ROOK) )
          {
             // There is a queen or a rook to the left, so the square is reachable
             bReachable = true;
@@ -871,7 +1221,7 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound)       == 'P' )         &&
+         else if ( (toupper(chPieceFound)       == PAWN )         &&
                    (getPieceColor(chPieceFound) == BLACK_PIECE ) &&
                    ( i  == iRow + 1 )                            )  
          {
@@ -879,8 +1229,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             bReachable = true;
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'R')  )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == ROOK ) )
          {
             // There is a queen or a rook on the way up, so the square is reachable
             bReachable = true;
@@ -908,7 +1258,7 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound)       == 'P' )         &&
+         else if ( (toupper(chPieceFound)       == PAWN )         &&
                    (getPieceColor(chPieceFound) == WHITE_PIECE ) &&
                    ( i  == iRow - 1 )                            )  
          {
@@ -916,8 +1266,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             bReachable = true;
             break;
          }
-         else if ((toupper(chPieceFound) == 'Q') ||
-                  (toupper(chPieceFound) == 'R') )
+         else if ((toupper(chPieceFound) == QUEEN) ||
+                  (toupper(chPieceFound) == ROOK ) )
          {
             // There is a queen or a rook on the way down, so the square is reachable
             bReachable = true;
@@ -948,8 +1298,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B'))
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP))
          {
             // There is a queen or a bishop in that direction, so the square is reachable
             bReachable = true;
@@ -963,7 +1313,7 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
       }
 
       // Check the diagonal up-left
-      for (int i = iRow + 1, j = iColumn - 1; i < 8 && j > 0; i++, j--)
+      for (int i = iRow + 1, j = iColumn - 1; i < 8 && j >= 0; i++, j--)
       {
          char chPieceFound = getPieceAtPosition(i, j);
          if (EMPTY_SQUARE == chPieceFound)
@@ -977,8 +1327,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B'))
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP))
          {
             // There is a queen or a bishop in that direction, so the square is reachable
             bReachable = true;
@@ -992,7 +1342,7 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
       }
 
       // Check the diagonal down-right
-      for (int i = iRow - 1, j = iColumn + 1; i > 0 && j < 8; i--, j++)
+      for (int i = iRow - 1, j = iColumn + 1; i >= 0 && j < 8; i--, j++)
       {
          char chPieceFound = getPieceAtPosition(i, j);
          if (EMPTY_SQUARE == chPieceFound)
@@ -1006,8 +1356,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP) )
          {
             // There is a queen or a bishop in that direction, so the square is reachable
             bReachable = true;
@@ -1021,7 +1371,7 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
       }
 
       // Check the diagonal down-left
-      for (int i = iRow - 1, j = iColumn - 1; i > 0 && j > 0; i--, j--)
+      for (int i = iRow - 1, j = iColumn - 1; i >= 0 && j >= 0; i--, j--)
       {
          char chPieceFound = getPieceAtPosition(i, j);
          if (EMPTY_SQUARE == chPieceFound)
@@ -1035,8 +1385,8 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             break;
          }
-         else if ( (toupper(chPieceFound) == 'Q') ||
-                   (toupper(chPieceFound) == 'B') )
+         else if ( (toupper(chPieceFound) == QUEEN) ||
+                   (toupper(chPieceFound) == BISHOP) )
          {
             // There is a queen or a bishop in that direction, so the square is reachable
             bReachable = true;
@@ -1079,7 +1429,7 @@ bool Game::isReachable( int iRow, int iColumn, int iColor )
             // This is a piece of the same color
             continue;
          }
-         else if ( (toupper(chPieceFound) == 'N') )
+         else if ( (toupper(chPieceFound) == KNIGHT) )
          {
             bReachable = true;
             break;
@@ -1448,11 +1798,21 @@ bool Game::isCheckMate()
          continue;
       }
 
-      if ( EMPTY_SQUARE != getPieceAtPosition(iRowToTest, iColumnToTest) )
+      // Is that square occupied?
+      char chTempPiece = getPieceAtPosition(iRowToTest, iColumnToTest);
+      if ( EMPTY_SQUARE != chTempPiece)
       {
-         // That square is not empty, so no need to test
-         // TODO: what if it's an oponent piece?
-         continue;
+         // If that square is occupied by another piece of the same color, it's not an option
+         if (getPieceColor(chTempPiece) == getCurrentTurn() ) 
+         {
+            continue;
+         }
+
+         // If that square is occupied by a piece of the other color, must check if it's protected
+         if ( isPieceProtected(iRowToTest, iColumnToTest, getOpponentColor()) )
+         {
+            continue;
+         }
       }
 
       Chess::IntendedMove intended_move;
@@ -1475,17 +1835,33 @@ bool Game::isCheckMate()
    }
 
    // 3. Can the attacker be taken or another piece get into the way? 
-   Chess::UnderAttack king_attacked = isUnderAttack( king.iRow, king.iColumn, getCurrentTurn() );
+   Chess::UnderAttack king_attacked = isUnderAttack( king.iRow, king.iColumn, getCurrentTurn(), nullptr );
    if ( 1 == king_attacked.iNumAttackers )
    {
       // Can the attacker be taken?
       Chess::UnderAttack king_attacker = { 0 };
-      king_attacker = isUnderAttack( king_attacked.attacker[0].pos.iRow, king_attacked.attacker[0].pos.iColumn, getOpponentColor() );
+      king_attacker = isUnderAttack( king_attacked.attacker[0].pos.iRow, king_attacked.attacker[0].pos.iColumn, getOpponentColor(), nullptr );
 
       if ( true == king_attacker.bUnderAttack )
       {
-         // This means that the attacker can be taken, so it's not a checkmate
-         return false;
+         // This means that the attacker can be taken
+         // If it can be taken by any piece other than the king, it's not a checkmate
+         // If it can be taken by the king, must check if the piece is 'protected' (i.e., another piece from the same color protects it)
+
+         if ( king_attacker.iNumAttackers == 1 && king_attacker.attacker[0].chPiece == KING) {
+            if ( isPieceProtected(king_attacked.attacker[0].pos.iRow, king_attacked.attacker[0].pos.iColumn, getOpponentColor()) )
+            {
+               return true;
+            }
+            else {
+               // Not a checkmate
+               return false;
+            }
+         }
+         else {
+            // Not a checkmate
+            return false;
+         }
       }
       else
       {
@@ -1494,8 +1870,8 @@ bool Game::isCheckMate()
 
          switch( toupper(chAttacker) )
          {
-            case 'P':
-            case 'N':
+            case PAWN:
+            case KNIGHT:
             {
                // If it's a pawn, there's no space in between the attacker and the king
                // If it's a knight, it doesn't matter because the knight can 'jump'
@@ -1504,7 +1880,7 @@ bool Game::isCheckMate()
             }
             break;
 
-            case 'B':
+            case BISHOP:
             {
                if ( false == canBeBlocked(king_attacked.attacker[0].pos, king, Chess::DIAGONAL ) )
                {
@@ -1514,7 +1890,7 @@ bool Game::isCheckMate()
             }
             break;
 
-            case 'R':
+            case ROOK:
             {
                if ( false == canBeBlocked(king_attacked.attacker[0].pos, king, king_attacked.attacker[0].dir ) )
                {
@@ -1524,7 +1900,7 @@ bool Game::isCheckMate()
             }
             break;
 
-            case 'Q':
+            case QUEEN:
             {
                if ( false == canBeBlocked(king_attacked.attacker[0].pos, king, king_attacked.attacker[0].dir ) )
                {
@@ -1546,7 +1922,7 @@ bool Game::isCheckMate()
    else
    {
       // If there is more than one attacker and we reached this point, it's a checkmate
-      bCheckmate      = true;
+      bCheckmate = true;
    }
 
    // If the game has ended, store in the class variable
@@ -1562,7 +1938,7 @@ bool Game::isKingInCheck(int iColor, IntendedMove* pintended_move)
    Position king = { 0 };
    
    // Must check if the intended move is to move the king itself
-   if ( nullptr != pintended_move && 'K' == toupper( pintended_move->chPiece) )
+   if ( nullptr != pintended_move && KING == toupper( pintended_move->chPiece) )
    {
       king.iRow    = pintended_move->to.iRow;
       king.iColumn = pintended_move->to.iColumn;
@@ -1618,6 +1994,19 @@ Chess::Position Game::findKing(int iColor)
    }
 
    return king;
+}
+
+void Game::addAtacker( UnderAttack* attack, int iRow, int iColumn, Direction dir, char chPiece )
+{
+   attack->bUnderAttack = true;
+   attack->iNumAttackers += 1;
+
+   attack->attacker[attack->iNumAttackers-1].pos.iRow = iRow;
+   attack->attacker[attack->iNumAttackers-1].pos.iColumn = iColumn;
+   attack->attacker[attack->iNumAttackers-1].dir = dir;
+   attack->attacker[attack->iNumAttackers-1].chPiece = toupper(chPiece);
+
+   return;
 }
 
 void Game::changeTurns(void)
